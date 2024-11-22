@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [linux, macos, windows]
-        target: ${{ matrix.os == 'windows' && fromJSON('["x86_64"]') || fromJSON('["x86_64", "aarch64"]') }}
+        target: ${{ fromJSON(matrix.os == 'windows' && '["x86_64"]' || '["x86_64", "aarch64"]') }}
         manylinux: [auto]
         include:
           # manylinux for various platforms, plus x86_64 pypy
