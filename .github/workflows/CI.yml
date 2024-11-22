@@ -145,7 +145,7 @@ jobs:
           path: dist
 
   list-pypi-files:
-    needs: [build]
+    needs: [build, build-sdist]
     runs-on: ubuntu-latest
 
     steps:
