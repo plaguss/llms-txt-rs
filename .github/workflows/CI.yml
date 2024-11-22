@@ -127,6 +127,40 @@ jobs:
           name: pypi_files_${{ matrix.os }}_${{ matrix.target }}_${{ matrix.interpreter || 'all' }}_${{ matrix.manylinux }}
           path: dist
 
+  list-pypi-files:
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: get dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pypi_files_*
+          merge-multiple: true
+          path: dist
+
+      - name: list dist files
+        run: |
+          ls -lh dist/
+          echo "`ls dist | wc -l` files"
+
+      - name: extract and list sdist file
+        run: |
+          mkdir sdist-files
+          tar -xvf dist/*.tar.gz -C sdist-files
+          tree -a sdist-files
+
+      - name: extract and list wheel file
+        run: ls dist/*cp312-manylinux_2_17_x86_64*.whl | head -n 1
+
+      - name: extract and list wheel file
+        run: python -m zipfile --list `ls dist/*cp312-manylinux_2_17_x86_64*.whl | head -n 1`
+
+      - run: pip install twine
+      - run: twine check dist/*            
+
   release:
     name: Release
     needs: [build]
