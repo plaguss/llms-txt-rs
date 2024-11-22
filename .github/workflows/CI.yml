@@ -139,7 +139,7 @@ jobs:
       - name: set up python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
 
       - run: pip install twine
 
@@ -149,12 +149,6 @@ jobs:
           pattern: pypi_files_*
           merge-multiple: true
           path: dist
-
-      - name: get docs
-        uses: actions/download-artifact@v4
-        with:
-          name: docs
-          path: site
 
       - run: twine check dist/*
 
