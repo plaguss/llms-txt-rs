@@ -1,0 +1,37 @@
+[package]
+name = "llms-txt-rs"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://github.com/plaguss/llms-txt-rs"
+repository = "https://github.com/plaguss/llms-txt-rs"
+readme = "README.md"
+include = [
+    "/pyproject.toml",
+    "/README.md",
+    "/LICENSE",
+    "/Makefile",
+    "/src",
+    "/llms_txt_rs",
+    "/tests",
+    "!__pycache__",
+    "!tests/.mypy_cache",
+    "!tests/.pytest_cache",
+    "!*.so",
+]
+rust-version = "1.78"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "llms_txt_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23.1", features = ["extension-module"] }
+regex = "1.11.1"
+lazy_static = "1.4"
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+
