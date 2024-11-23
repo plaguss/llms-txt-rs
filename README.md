@@ -6,7 +6,7 @@ Parser for [llms.txt](https://llmstxt.org/) files, written in rust just for the 
 **llms_txt_rs** requires Python 3.8 - 3.13.
 
 ```bash
-uv pip install llms_txt_rs
+uv pip install llms-txt-rs
 ```
 
 Binaries are available for:
