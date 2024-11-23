@@ -8,9 +8,6 @@ lazy_static! {
     static ref LINK_REGEX: Regex =
         Regex::new(r"-\s*\[(?P<title>[^\]]+)\]\((?P<url>[^\)]+)\)(?::\s*(?P<desc>.*))?").unwrap();
     static ref SECTION_REGEX: Regex = Regex::new(r"(?m)^##\s*(.*?)\n").unwrap();
-    static ref START_REGEX: Regex =
-        Regex::new(r"(?ms)^#\s*(?P<title>.+?$)\n+(?:^>\s*(?P<summary>.+?$)\n+)?(?P<info>.*)")
-            .unwrap();
 }
 
 fn parse_links(links: &str) -> Vec<HashMap<String, String>> {
@@ -76,6 +73,65 @@ fn split_text(txt: &str) -> (&str, Vec<&str>) {
     (start, rest)
 }
 
+#[derive(Debug, PartialEq)]
+struct ParsedStart {
+    title: String,
+    summary: Option<String>,
+    info: Option<String>,
+}
+
+fn parse_start(input: &str) -> ParsedStart {
+    let mut lines = input.lines();
+    let mut title = String::new();
+    let mut summary = None;
+    let mut info = None;
+
+    // Extract the title
+    if let Some(line) = lines.next() {
+        if line.starts_with('#') {
+            title = line.trim_start_matches('#').trim().to_string();
+        }
+    }
+
+    // Extract the summary and info
+    let mut current_section = String::new();
+
+    for line in lines {
+        if line.starts_with('>') {
+            // This is a summary line
+            let trimmed_line = line.trim_start_matches('>').trim().to_string();
+            if summary.is_none() {
+                summary = Some(trimmed_line);
+            } else {
+                if let Some(ref mut s) = summary {
+                    s.push('\n');
+                    s.push_str(&trimmed_line);
+                }
+            }
+        } else if line.is_empty() {
+            if !current_section.is_empty() {
+                info = Some(current_section.trim().to_string());
+                current_section.clear();
+            }
+        } else {
+            // Regular text goes to current_section
+            if current_section.is_empty() {
+                current_section.push_str(line);
+            } else {
+                current_section.push('\n');
+                current_section.push_str(line);
+            }
+        }
+    }
+
+    // Handle the last section if it exists
+    if !current_section.is_empty() {
+        info = Some(current_section.trim().to_string());
+    }
+
+    ParsedStart { title, summary, info }
+}
+
 #[pyfunction]
 pub fn parse_llms_txt(py: Python<'_>, txt: &str) -> PyResult<PyObject> {
     let (start, rest) = split_text(txt);
@@ -113,36 +169,12 @@ pub fn parse_llms_txt(py: Python<'_>, txt: &str) -> PyResult<PyObject> {
         }
     }
 
-    let start_caps = START_REGEX.captures(start.trim()).ok_or_else(|| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>("Failed to parse header section")
-    })?;
+    let start_caps = parse_start(start.trim());
 
     let result = PyDict::new(py);
-    result.set_item(
-        "title",
-        start_caps
-            .name("title")
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing title"))?
-            .as_str()
-            .trim(),
-    )?;
-
-    result.set_item(
-        "summary",
-        match start_caps.name("summary") {
-            Some(summary) => summary.as_str().trim().into_py(py),
-            None => py.None(),
-        },
-    )?;
-
-    result.set_item(
-        "info",
-        start_caps
-            .name("info")
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyValueError, _>("Missing info"))?
-            .as_str()
-            .trim(),
-    )?;
+    result.set_item("title", start_caps.title)?;
+    result.set_item("summary", start_caps.summary.as_ref().map(|s| s.as_str()))?;
+    result.set_item("info", start_caps.info.as_ref().map(|s| s.as_str()))?;
 
     result.set_item("sections", sections)?;
     Ok(result.into())
@@ -325,5 +357,65 @@ Optional details go here
         let (start, rest) = split_text(txt);
         assert_eq!(start, "");
         assert_eq!(rest, Vec::<&str>::new());
+    }
+
+    #[test]
+    fn test_parse_start_missing_optional_lints() {
+        let txt = "# Only Title\n\nOnly details here";
+        let parsed_data = parse_start(txt);
+
+        assert_eq!(
+            parsed_data,
+            ParsedStart {
+                title: "Only Title".to_string(),
+                summary: None,
+                info: Some("Only details here".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_start_no_summary() {
+        let txt = "# No Links Title\n\nSome details without links";
+        let parsed_data = parse_start(txt);
+
+        assert_eq!(
+            parsed_data,
+            ParsedStart {
+                title: "No Links Title".to_string(),
+                summary: None,
+                info: Some("Some details without links".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_start_no_info() {
+        let txt = "# No Links Title\n\n> No description";
+        let parsed_data = parse_start(txt);
+
+        assert_eq!(
+            parsed_data,
+            ParsedStart {
+                title: "No Links Title".to_string(),
+                summary: Some("No description".to_string()),
+                info: None
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_start_no_info_no_summary() {
+        let txt = "# Title";
+        let parsed_data = parse_start(txt);
+
+        assert_eq!(
+            parsed_data,
+            ParsedStart {
+                title: "Title".to_string(),
+                summary: None,
+                info: None
+            }
+        );
     }
 }
