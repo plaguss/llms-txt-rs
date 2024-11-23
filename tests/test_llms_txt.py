@@ -115,7 +115,7 @@ def test_no_links():
     llms_txt = dedent(
         """\
         # No Links Title
-    
+
         > No description
 
         Some details without links
@@ -128,4 +128,60 @@ def test_no_links():
         "summary": "No description",
         "info": "Some details without links",
         "sections": {},
+    }
+
+def test_no_summary():
+    llms_txt = dedent(
+        """\
+        # No Links Title
+
+        Some details without links
+        """
+    )
+    data = parse_llms_txt(llms_txt)
+
+    assert data == {
+        "title": "No Links Title",
+        "summary": None,
+        "info": "Some details without links",
+        "sections": {},
+    }
+
+def test_no_info():
+    llms_txt = dedent(
+        """\
+        # No Links Title
+
+        > No description
+        """
+    )
+    data = parse_llms_txt(llms_txt)
+
+    assert data == {
+        "title": "No Links Title",
+        "summary": "No description",
+        "info": None,
+        "sections": {},
+    }
+
+def test_no_info_or_summary():
+    llms_txt = dedent("""\
+    # Title
+
+    ## Docs
+
+    - [Chat Completions](https://docs.perplexity.ai/api-reference/chat-completions): Generates a model's response for the given chat conversation.
+    - [Changelog](https://docs.perplexity.ai/changelog/changelog)
+    """)
+
+    assert parse_llms_txt(llms_txt) == {
+        "title": "Title",
+        "summary": None,
+        "info": None,
+        "sections": {
+            "Docs": [
+                {"title": "Chat Completions", "url": "https://docs.perplexity.ai/api-reference/chat-completions", "desc": "Generates a model's response for the given chat conversation."},
+                {"title": "Changelog", "url": "https://docs.perplexity.ai/changelog/changelog", "desc": None},
+            ]
+        },
     }
